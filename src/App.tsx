@@ -429,8 +429,8 @@ function QuoteApp({ catalog }: { catalog: Catalog }) {
         <a className="brand" href="#top" aria-label="返回顶部">
           <span className="brand-mark">山</span>
           <span className="brand-copy">
-            <strong>山水报价</strong>
-            <small>安徽山水智元</small>
+            <strong>安徽山水智元科技</strong>
+            <small>产品报价查询</small>
           </span>
         </a>
         <div className="header-actions">
@@ -598,8 +598,8 @@ export default function App() {
           <div className="brand access-brand">
             <span className="brand-mark">山</span>
             <span className="brand-copy">
-              <strong>山水报价</strong>
-              <small>安徽山水智元</small>
+              <strong>安徽山水智元科技</strong>
+              <small>产品报价查询</small>
             </span>
           </div>
           <div className="access-loading">{error || '正在打开报价数据…'}</div>
