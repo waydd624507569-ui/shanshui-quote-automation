@@ -45,15 +45,22 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           kdocs-cli version
 
+      - name: Check for changes
+        id: check
+        run: node scripts/check-version.mjs
+
       - name: Sync original workbook
+        if: steps.check.outputs.changed == 'true'
         run: npm run sync:data
 
       - name: Encrypt and build
+        if: steps.check.outputs.changed == 'true'
         run: |
           npm run protect
           npm run build
 
       - name: Deploy to EdgeOne
+        if: steps.check.outputs.changed == 'true'
         run: |
           npx edgeone makers deploy dist \
             --name shanshui-quote-public \
@@ -61,3 +68,12 @@ jobs:
             --area overseas \
             --skip-ai-gateway-sync \
             --token "$EDGEONE_API_TOKEN"
+
+      - name: Persist last-mtime
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name 'quote-sync-bot'
+          git config user.email 'quote-sync-bot@users.noreply.github.com'
+          git add last-mtime
+          git commit -m "chore: update last-mtime" || echo "no change"
+          git push
