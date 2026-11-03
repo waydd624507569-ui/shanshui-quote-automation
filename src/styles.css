@@ -1084,15 +1084,10 @@ main {
   }
 
   .category-strip {
-    flex-wrap: nowrap;
-    margin-right: -14px;
-    padding-right: 14px;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .category-strip::-webkit-scrollbar {
-    display: none;
+    flex-wrap: wrap;
+    margin-right: 0;
+    padding-right: 0;
+    overflow: visible;
   }
 
   .deal-section {
