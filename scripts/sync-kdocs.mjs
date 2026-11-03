@@ -76,6 +76,26 @@ async function main() {
         .filter((name) => name && name.trim());
       const sheets = [];
 
+      // WPS Value2 只返回合并区域左上角的值，把备注列展开到每个型号所在行。
+      const expandMergedColumn = async (sheet, values, columnIndex, columnLetter) => {
+        if (!Array.isArray(values)) return;
+        const areaPattern = new RegExp(`^\\$${columnLetter}\\$(\\d+):\\$${columnLetter}\\$(\\d+)$`);
+        for (let row = 1; row <= values.length; row += 1) {
+          const range = await sheet.Range(`${columnLetter}${row}`);
+          if (!(await range.MergeCells)) continue;
+          const address = await (await range.MergeArea).Address();
+          const match = address.match(areaPattern);
+          if (!match) continue;
+          const startRow = Number(match[1]);
+          const endRow = Number(match[2]);
+          const value = values[startRow - 1]?.[columnIndex] ?? '';
+          for (let mergedRow = startRow; mergedRow <= endRow; mergedRow += 1) {
+            values[mergedRow - 1][columnIndex] = value;
+          }
+          row = endRow;
+        }
+      };
+
       for (const sourceName of rawNames) {
         let sheet = await workbook.Worksheets(sourceName);
         if (!sheet) sheet = await workbook.Worksheets(sourceName.trim());
@@ -88,7 +108,11 @@ async function main() {
         } catch {
           values = valueText;
         }
-        sheets.push({ sourceName, displayName: sourceName.trim(), values });
+        const displayName = sourceName.trim();
+        if (displayName === '显卡综合10.30') {
+          await expandMergedColumn(sheet, values, 3, 'D');
+        }
+        sheets.push({ sourceName, displayName, values });
       }
 
       const dealsSheet = await workbook.Worksheets('10月特价');
