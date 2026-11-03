@@ -314,6 +314,12 @@ function ProductCard({ item }: { item: CatalogItem }) {
         </button>
       </div>
 
+      {item.image ? (
+        <div className="product-image">
+          <img src={item.image} alt={`${item.name} 产品图`} loading="lazy" decoding="async" />
+        </div>
+      ) : null}
+
       <div className="product-card-main">
         <h3>{item.name}</h3>
         {item.specs ? <p className="product-specs">{item.specs}</p> : null}

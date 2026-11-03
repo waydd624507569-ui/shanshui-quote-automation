@@ -788,6 +788,26 @@ main {
   border-color: var(--line);
 }
 
+.product-image {
+  position: relative;
+  height: clamp(220px, 23vw, 290px);
+  margin-top: 16px;
+  padding: 12px;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 42%, #fff 0%, #f6f4ee 100%);
+  border: 1px solid rgba(28, 36, 32, 0.07);
+  border-radius: 14px;
+}
+
+.product-image img {
+  display: block;
+  position: absolute;
+  inset: 12px;
+  width: calc(100% - 24px);
+  height: calc(100% - 24px);
+  object-fit: contain;
+}
+
 .product-card-main {
   flex: 1;
   padding: 22px 0 16px;

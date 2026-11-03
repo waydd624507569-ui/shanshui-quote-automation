@@ -20,6 +20,7 @@ export interface CatalogItem {
   priceText: string;
   note: string;
   specs: string;
+  image?: string;
   sheet: string;
   row: number;
   col: string;

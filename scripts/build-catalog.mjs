@@ -4,8 +4,12 @@ import crypto from 'node:crypto';
 
 const root = path.resolve(import.meta.dirname, '..');
 const snapshotPath = path.join(root, 'data/source-snapshot.json');
+const imageMapPath = path.join(root, 'data/product-images.json');
 const outputPath = path.join(root, 'src/data/catalog.json');
 const snapshot = JSON.parse(fs.readFileSync(snapshotPath, 'utf8'));
+const productImageMap = fs.existsSync(imageMapPath)
+  ? JSON.parse(fs.readFileSync(imageMapPath, 'utf8'))
+  : {};
 
 const CATEGORY_ORDER = [
   '显卡',
@@ -100,6 +104,8 @@ function pushItem(item) {
   const displayName = brand && !name.toLowerCase().startsWith(brand.toLowerCase())
     ? `${brand} ${name}`
     : name;
+  const sourceAddress = item.sourceAddress || `${item.col}${item.row}`;
+  const image = productImageMap[`${item.sheet}!${sourceAddress}`] || item.image || '';
   items.push({
     id: stableId(item.sheet, item.row, item.col, displayName),
     category,
@@ -109,10 +115,11 @@ function pushItem(item) {
     priceText: item.priceText || '',
     note: oneLine(item.note || ''),
     specs: oneLine(item.specs || ''),
+    ...(image ? { image } : {}),
     sheet: item.sheet,
     row: item.row,
     col: item.col,
-    sourceAddress: item.sourceAddress || `${item.col}${item.row}`,
+    sourceAddress,
   });
 }
 
