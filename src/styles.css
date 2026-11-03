@@ -789,7 +789,7 @@ main {
 }
 
 .product-image {
-  position: relative;
+  display: flex;
   height: clamp(220px, 23vw, 290px);
   margin-top: 16px;
   padding: 12px;
@@ -797,14 +797,16 @@ main {
   background: radial-gradient(circle at 50% 42%, #fff 0%, #f6f4ee 100%);
   border: 1px solid rgba(28, 36, 32, 0.07);
   border-radius: 14px;
+  align-items: center;
+  justify-content: center;
 }
 
 .product-image img {
   display: block;
-  position: absolute;
-  inset: 12px;
-  width: calc(100% - 24px);
-  height: calc(100% - 24px);
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 
