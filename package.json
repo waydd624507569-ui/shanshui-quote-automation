@@ -12,7 +12,8 @@
     "protect": "node scripts/encrypt-catalog.mjs",
     "deploy:pages": "zsh scripts/deploy-pages.sh",
     "deploy:edgeone": "zsh scripts/deploy-edgeone.sh",
-    "reauth:wps": "node scripts/export-wps-session.mjs && zsh scripts/publish-wps-session.sh"
+    "reauth:wps": "node scripts/export-wps-session.mjs && zsh scripts/publish-wps-session.sh",
+    "sync:data": "node scripts/sync-kdocs-cli.mjs && node scripts/build-catalog.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.66.0",

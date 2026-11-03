@@ -19,12 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      WPS_STORAGE_STATE_FILE: /tmp/wps-storage-state.json
-      WPS_STORAGE_STATE_OUTPUT: /tmp/wps-storage-state-updated.json
       WPS_SKIP_IMAGES: '1'
       CATALOG_PASSPHRASE: ${{ secrets.CATALOG_PASSPHRASE }}
       VITE_CATALOG_PASSPHRASE: ${{ secrets.CATALOG_PASSPHRASE }}
       EDGEONE_API_TOKEN: ${{ secrets.EDGEONE_API_TOKEN }}
+      KDOCS_TOKEN: ${{ secrets.KDOCS_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4
@@ -37,28 +36,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Select Chrome
+      - name: Install kdocs-cli
         run: |
-          chrome_bin="$(command -v google-chrome || command -v google-chrome-stable)"
-          test -n "$chrome_bin"
-          echo "CHROME_EXECUTABLE=$chrome_bin" >> "$GITHUB_ENV"
-
-      - name: Restore WPS session
-        env:
-          WPS_STORAGE_STATE_GZ_B64: ${{ secrets.WPS_STORAGE_STATE_GZ_B64 }}
-        run: |
-          if [ -f secrets/wps-state.enc ]; then
-            openssl enc -d -aes-256-cbc -pbkdf2 -salt \
-              -pass env:CATALOG_PASSPHRASE \
-              -in secrets/wps-state.enc \
-              -out "$WPS_STORAGE_STATE_FILE"
-          else
-            printf '%s' "$WPS_STORAGE_STATE_GZ_B64" | base64 -d | gunzip > "$WPS_STORAGE_STATE_FILE"
-          fi
-          chmod 600 "$WPS_STORAGE_STATE_FILE"
+          curl -fsSL https://wpsai.wpscdn.cn/skillhub/pro/v2.7.1/releases/kdocs-cli-2.7.1-linux-amd64.tar.gz -o /tmp/kdocs-cli.tar.gz
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf /tmp/kdocs-cli.tar.gz -C "$HOME/.local/bin"
+          chmod +x "$HOME/.local/bin/kdocs-cli"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          kdocs-cli version
 
       - name: Sync original workbook
-        run: npm run sync
+        run: npm run sync:data
 
       - name: Encrypt and build
         run: |
@@ -73,22 +61,3 @@ jobs:
             --area overseas \
             --skip-ai-gateway-sync \
             --token "$EDGEONE_API_TOKEN"
-
-      - name: Refresh encrypted WPS session
-        run: |
-          last_refresh="$(cat last-wps-refresh 2>/dev/null || echo 0)"
-          now="$(date +%s)"
-          if [ ! -f "$WPS_STORAGE_STATE_OUTPUT" ] || [ $((now - last_refresh)) -lt 36000 ]; then
-            exit 0
-          fi
-          mkdir -p secrets
-          openssl enc -aes-256-cbc -pbkdf2 -salt \
-            -pass env:CATALOG_PASSPHRASE \
-            -in "$WPS_STORAGE_STATE_OUTPUT" \
-            -out secrets/wps-state.enc
-          printf '%s\n' "$now" > last-wps-refresh
-          git config user.name 'quote-sync-bot'
-          git config user.email 'quote-sync-bot@users.noreply.github.com'
-          git add secrets/wps-state.enc last-wps-refresh
-          git commit -m "chore: refresh encrypted WPS session"
-          git push
