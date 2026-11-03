@@ -974,6 +974,42 @@ main {
   font-size: 10px;
 }
 
+.back-to-top {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid rgba(28, 36, 32, 0.14);
+  border-radius: 999px;
+  box-shadow: 0 12px 30px rgba(35, 39, 35, 0.12);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: opacity 160ms ease, visibility 160ms ease, transform 160ms ease, background 160ms ease;
+  pointer-events: none;
+}
+
+.back-to-top.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.back-to-top:hover {
+  background: #f7f7f5;
+}
+
 @media (max-width: 980px) {
   .hero {
     gap: 16px;
@@ -1191,6 +1227,13 @@ main {
     flex-direction: column;
     gap: 8px;
     padding-bottom: 28px;
+  }
+
+  .back-to-top {
+    right: 14px;
+    bottom: 16px;
+    min-height: 42px;
+    padding: 0 13px;
   }
 }
 

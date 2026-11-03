@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  ArrowUp,
   Box,
   Check,
   ChevronLeft,
@@ -351,6 +352,14 @@ function QuoteApp({ catalog }: { catalog: Catalog }) {
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>(ALL);
   const [sortMode, setSortMode] = useState<SortMode>('relevance');
   const [visibleCount, setVisibleCount] = useState(24);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  useEffect(() => {
+    const update = () => setShowBackToTop(window.scrollY > 520);
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    return () => window.removeEventListener('scroll', update);
+  }, []);
 
   const filteredItems = useMemo(() => {
     const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -547,6 +556,16 @@ function QuoteApp({ catalog }: { catalog: Catalog }) {
         <span>数据来源：{catalog.meta.title}</span>
         <span>只读同步 · 最近抓取 {formatDate(catalog.meta.capturedAt)}</span>
       </footer>
+
+      <button
+        type="button"
+        className={`back-to-top${showBackToTop ? ' visible' : ''}`}
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        aria-label="回到页面顶部"
+      >
+        <ArrowUp size={17} />
+        <span>顶部</span>
+      </button>
     </div>
   );
 }
