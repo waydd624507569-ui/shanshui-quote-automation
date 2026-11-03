@@ -76,4 +76,5 @@ jobs:
           git config user.email 'quote-sync-bot@users.noreply.github.com'
           git add last-mtime
           git commit -m "chore: update last-mtime" || echo "no change"
+          git pull --rebase origin main || true
           git push
