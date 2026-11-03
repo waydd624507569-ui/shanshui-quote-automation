@@ -199,6 +199,7 @@ https://www.kdocs.cn/l/cpn7SRJAtLzt
 - GitHub Actions 的 `schedule` 定时器在该账号上不触发（账号级平台问题），已用 SCF 替代，不要再依赖 GitHub schedule。
 - KDOCS_TOKEN 约 1 年失效，需重新 `kdocs-cli auth login` 并更新 Secrets。
 - 云端自动同步不更新套餐图片；图片更新需 Mac。
+- SCF 函数直接调用 kdocs 底层接口 `mcp-center.wps.cn/skill_hub/api/v1/tool`（绕过 kdocs-cli 封装），若金山修改该接口，SCF 的 mtime 检测会静默失效。
 - 原表结构若新增品牌子表或改变列位置，需同步调整 `scripts/build-catalog.mjs`。
 - 富勒 L618/L650/L690 黑白颜色变体目前按同型号去重，只保留一条记录。
 
