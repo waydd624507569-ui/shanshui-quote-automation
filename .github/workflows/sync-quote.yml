@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 15
     env:
       WPS_STORAGE_STATE_FILE: /tmp/wps-storage-state.json
+      WPS_STORAGE_STATE_OUTPUT: /tmp/wps-storage-state-updated.json
       WPS_SKIP_IMAGES: '1'
       CATALOG_PASSPHRASE: ${{ secrets.CATALOG_PASSPHRASE }}
       VITE_CATALOG_PASSPHRASE: ${{ secrets.CATALOG_PASSPHRASE }}
@@ -44,7 +45,14 @@ jobs:
         env:
           WPS_STORAGE_STATE_GZ_B64: ${{ secrets.WPS_STORAGE_STATE_GZ_B64 }}
         run: |
-          printf '%s' "$WPS_STORAGE_STATE_GZ_B64" | base64 -d | gunzip > "$WPS_STORAGE_STATE_FILE"
+          if [ -f secrets/wps-state.enc ]; then
+            openssl enc -d -aes-256-cbc -pbkdf2 -salt \
+              -pass env:CATALOG_PASSPHRASE \
+              -in secrets/wps-state.enc \
+              -out "$WPS_STORAGE_STATE_FILE"
+          else
+            printf '%s' "$WPS_STORAGE_STATE_GZ_B64" | base64 -d | gunzip > "$WPS_STORAGE_STATE_FILE"
+          fi
           chmod 600 "$WPS_STORAGE_STATE_FILE"
 
       - name: Sync original workbook
@@ -64,15 +72,21 @@ jobs:
             --skip-ai-gateway-sync \
             --token "$EDGEONE_API_TOKEN"
 
-      - name: Daily heartbeat
+      - name: Refresh encrypted WPS session
         run: |
-          today="$(TZ=Asia/Shanghai date +%F)"
-          if [ "$(cat last-sync-date 2>/dev/null || true)" = "$today" ]; then
+          last_refresh="$(cat last-wps-refresh 2>/dev/null || echo 0)"
+          now="$(date +%s)"
+          if [ ! -f "$WPS_STORAGE_STATE_OUTPUT" ] || [ $((now - last_refresh)) -lt 36000 ]; then
             exit 0
           fi
-          printf '%s\n' "$today" > last-sync-date
+          mkdir -p secrets
+          openssl enc -aes-256-cbc -pbkdf2 -salt \
+            -pass env:CATALOG_PASSPHRASE \
+            -in "$WPS_STORAGE_STATE_OUTPUT" \
+            -out secrets/wps-state.enc
+          printf '%s\n' "$now" > last-wps-refresh
           git config user.name 'quote-sync-bot'
           git config user.email 'quote-sync-bot@users.noreply.github.com'
-          git add last-sync-date
-          git commit -m "chore: quote sync heartbeat $today"
+          git add secrets/wps-state.enc last-wps-refresh
+          git commit -m "chore: refresh encrypted WPS session"
           git push

@@ -192,6 +192,12 @@ async function main() {
 
     console.log(`已同步 ${result.sheets.length} 个工作表${collectImages ? `、${packageImages.length} 张透明背景活动图` : ''}。`);
     console.log(`来源：${result.url}`);
+    if (process.env.WPS_STORAGE_STATE_OUTPUT) {
+      const outputPath = process.env.WPS_STORAGE_STATE_OUTPUT;
+      fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+      await context.storageState({ path: outputPath });
+      fs.chmodSync(outputPath, 0o600);
+    }
   } finally {
     await browser.close();
     fs.rmSync(tempProfile, { recursive: true, force: true });
