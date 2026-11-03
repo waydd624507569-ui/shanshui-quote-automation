@@ -1,0 +1,78 @@
+name: Sync quote data
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: shanshui-quote-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      WPS_STORAGE_STATE_FILE: /tmp/wps-storage-state.json
+      WPS_SKIP_IMAGES: '1'
+      CATALOG_PASSPHRASE: ${{ secrets.CATALOG_PASSPHRASE }}
+      VITE_CATALOG_PASSPHRASE: ${{ secrets.CATALOG_PASSPHRASE }}
+      EDGEONE_API_TOKEN: ${{ secrets.EDGEONE_API_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Select Chrome
+        run: |
+          chrome_bin="$(command -v google-chrome || command -v google-chrome-stable)"
+          test -n "$chrome_bin"
+          echo "CHROME_EXECUTABLE=$chrome_bin" >> "$GITHUB_ENV"
+
+      - name: Restore WPS session
+        env:
+          WPS_STORAGE_STATE_GZ_B64: ${{ secrets.WPS_STORAGE_STATE_GZ_B64 }}
+        run: |
+          printf '%s' "$WPS_STORAGE_STATE_GZ_B64" | base64 -d | gunzip > "$WPS_STORAGE_STATE_FILE"
+          chmod 600 "$WPS_STORAGE_STATE_FILE"
+
+      - name: Sync original workbook
+        run: npm run sync
+
+      - name: Encrypt and build
+        run: |
+          npm run protect
+          npm run build
+
+      - name: Deploy to EdgeOne
+        run: |
+          npx edgeone makers deploy dist \
+            --name shanshui-quote-public \
+            --env production \
+            --area overseas \
+            --skip-ai-gateway-sync \
+            --token "$EDGEONE_API_TOKEN"
+
+      - name: Daily heartbeat
+        run: |
+          today="$(TZ=Asia/Shanghai date +%F)"
+          if [ "$(cat last-sync-date 2>/dev/null || true)" = "$today" ]; then
+            exit 0
+          fi
+          printf '%s\n' "$today" > last-sync-date
+          git config user.name 'quote-sync-bot'
+          git config user.email 'quote-sync-bot@users.noreply.github.com'
+          git add last-sync-date
+          git commit -m "chore: quote sync heartbeat $today"
+          git push

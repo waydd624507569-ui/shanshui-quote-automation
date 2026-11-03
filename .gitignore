@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env.local
+
+# Tencent Cloud EdgeOne
+.env
+.edgeone/*
+.tef_dist/*
+  
