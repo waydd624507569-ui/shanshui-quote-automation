@@ -1,12 +1,13 @@
 # 山水报价查询项目交接
 
-更新时间：2026-11-03 14:05（Asia/Shanghai）
+更新时间：2026-11-03 14:15（Asia/Shanghai）
 
 ## 1. 当前线上状态
 
 - 客户访问地址：https://quote.waydd.xyz/
 - 不需要访问密码，打开直接进入搜索。
 - 当前报价：696 条。
+- 商品图片：234 条已关联原图，共 227 个去重文件，约 28 MB。
 - 无价/缺货商品：45 条，搜索结果显示“无价”。
 - 最近一次云同步：GitHub Actions run 41587401574，成功。
 - 当前 WPS 登录态已验证有效，原表可正常打开，共 13 个工作表。
@@ -124,6 +125,14 @@ npm run protect
 npm run build
 ```
 
+重新提取原表中的商品图片，并更新商品图片映射：
+
+```bash
+cd /Users/ydd/Documents/ChatGPT/mac/product-quote
+WPS_STORAGE_STATE_FILE="$HOME/.config/product-quote/wps-storage-state.json" \
+  npm run sync:images
+```
+
 手动触发云同步：
 
 ```bash
@@ -192,8 +201,9 @@ https://www.kdocs.cn/l/cpn7SRJAtLzt
 
 ## 8. 图片规则
 
-- 客户明确要求不要压缩图片，当前使用原始 PNG。
-- 商品图片试点：`鑫谷 商选mini` 已使用原表 B3 原图，图片映射保存在 `data/product-images.json`。
+- 客户明确要求不要压缩图片，当前保留原图格式，不压缩。
+- 商品图片已批量接入 234 条，映射保存在 `data/product-images.json`，文件位于 `public/products/`。
+- `npm run sync:images` 会按表内图位关联型号，跳过 Logo、包装图和内部示意图；原表新增或更换商品图片后需在 Mac 上执行一次。
 - 6 个套餐图使用透明背景 PNG。
 - 图片来自金山内嵌原图，不再使用低清单元格截图。
 - 人工替换图保存在：

@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "sync": "node scripts/sync-kdocs.mjs && node scripts/build-catalog.mjs",
+    "sync:images": "node scripts/build-catalog.mjs && node scripts/sync-product-images.mjs && node scripts/build-catalog.mjs",
     "protect": "node scripts/encrypt-catalog.mjs",
     "deploy:pages": "zsh scripts/deploy-pages.sh",
     "deploy:edgeone": "zsh scripts/deploy-edgeone.sh",
