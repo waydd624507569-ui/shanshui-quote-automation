@@ -38,6 +38,11 @@
 
 https://github.com/waydd624507569-ui/shanshui-quote-automation
 
+### 仓库可见性
+
+- 自动化仓库已改为 **public**：GitHub 对 public 仓库的 Actions 免费、无 2000 分钟/月额度限制。
+- 敏感信息（KDOCS_TOKEN、CATALOG_PASSPHRASE、GH_TOKEN）均在 GitHub Secrets / SCF 环境变量中，不随代码公开。
+
 ### 完整链路
 
 ```
@@ -65,7 +70,7 @@ https://github.com/waydd624507569-ui/shanshui-quote-automation
 
 - 函数名：`airsync-trigger`（地域 ap-guangzhou，运行时 Nodejs16.13）。
 - 定时触发器：`airsync-timer`，cron `0 */5 * * * * *`（每 5 分钟）。
-- 函数逻辑：用环境变量 `GH_TOKEN` 发 `repository_dispatch`（event_type=`airsync`）到私有仓库。
+- 函数逻辑：先查原表 `mtime`（调 kdocs API，用 `KDOCS_TOKEN`），与仓库内 `last-mtime` 对比，**变了才**发 `repository_dispatch`（event_type=`airsync`，用 `GH_TOKEN`）。没变化直接返回，不发 dispatch。
 - 依赖：执行角色 `SCF_QcsRole`（已绑定自定义策略 `SCF-CLS-Access`，授予 CLS 日志权限）。
 - 注意：GitHub 的 `schedule` 定时器在该账号上不可用（见「已知限制」），因此用 SCF 替代。
 
@@ -190,7 +195,7 @@ https://www.kdocs.cn/l/cpn7SRJAtLzt
 
 ## 10. 已知限制
 
-- 非秒级，最长约 5 分钟延迟（SCF 每 5 分钟检测一次）。
+- 非秒级，最长约 5 分钟延迟（SCF 每 5 分钟查一次 mtime，变了才触发构建发布）。
 - GitHub Actions 的 `schedule` 定时器在该账号上不触发（账号级平台问题），已用 SCF 替代，不要再依赖 GitHub schedule。
 - KDOCS_TOKEN 约 1 年失效，需重新 `kdocs-cli auth login` 并更新 Secrets。
 - 云端自动同步不更新套餐图片；图片更新需 Mac。
