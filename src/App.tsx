@@ -427,7 +427,7 @@ function QuoteApp({ catalog }: { catalog: Catalog }) {
     <div className="app-shell">
       <header className="site-header">
         <a className="brand" href="#top" aria-label="返回顶部">
-          <span className="brand-mark">山</span>
+          <span className="brand-mark">山水</span>
           <span className="brand-copy">
             <strong>安徽山水智元科技</strong>
             <small>产品报价查询</small>
@@ -596,7 +596,7 @@ export default function App() {
       <main className="access-page">
         <div className="access-card">
           <div className="brand access-brand">
-            <span className="brand-mark">山</span>
+            <span className="brand-mark">山水</span>
             <span className="brand-copy">
               <strong>安徽山水智元科技</strong>
               <small>产品报价查询</small>
