@@ -322,9 +322,31 @@ simpleSheet('显卡综合10.30', '显卡', (row, rowIndex, sheet) => {
   return result;
 });
 
-// 显示器：工作簿内按品牌分成五个区块，各区块列结构不同。
+// 显示器：按品牌标题动态划分区块，避免表格插入行后固定行号失效。
 const displaySheet = sheetByName.get('显示器综合');
 if (displaySheet) {
+  const displayBrands = ['联想来酷', '优派', '泰坦', '海兰', '明基'];
+  const sectionStarts = [];
+  displaySheet.values.forEach((row, rowIndex) => {
+    const first = text(row[0]);
+    if (!first.includes('显示器')) return;
+    if (row.slice(1).some((value) => text(value))) return;
+    const brand = displayBrands.find((candidate) => first.includes(candidate));
+    if (brand) sectionStarts.push({ brand, rowIndex });
+  });
+  sectionStarts.sort((a, b) => a.rowIndex - b.rowIndex);
+
+  const sectionRows = (brand) => {
+    const index = sectionStarts.findIndex((section) => section.brand === brand);
+    if (index < 0) return [];
+    const start = sectionStarts[index].rowIndex;
+    const end = sectionStarts[index + 1]?.rowIndex ?? displaySheet.values.length;
+    return displaySheet.values.slice(start, end).map((row, offset) => ({
+      row,
+      rowIndex: start + offset,
+    }));
+  };
+
   const pushDisplay = (rowIndex, item) => {
     const name = oneLine(item.name);
     if (!name || /网吧做单|做单型号/.test(name)) return;
@@ -339,8 +361,7 @@ if (displaySheet) {
   };
 
   // 联想来酷：B 型号、F 价格。
-  for (let rowIndex = 2; rowIndex <= 41; rowIndex += 1) {
-    const row = displaySheet.values[rowIndex] || [];
+  for (const { row, rowIndex } of sectionRows('联想来酷')) {
     const name = text(row[1]);
     if (!name || name === '型号' || name === '流量型号') continue;
     const price = priceInfo(row[5]);
@@ -356,10 +377,10 @@ if (displaySheet) {
   }
 
   // 泰坦：A 型号、B 代理价。
-  for (let rowIndex = 46; rowIndex <= 76; rowIndex += 1) {
-    const row = displaySheet.values[rowIndex] || [];
+  for (const { row, rowIndex } of sectionRows('泰坦')) {
     const name = text(row[0]);
-    if (!name || name === '型号') continue;
+    if (!name || name === '型号' || /网吧做单|做单型号/.test(name)) continue;
+    if (!/[A-Z]/i.test(name) || !/\d/.test(name)) continue;
     const price = priceInfo(row[1]);
     pushDisplay(rowIndex, {
       name,
@@ -374,8 +395,7 @@ if (displaySheet) {
 
   // 优派：C 型号、G 渠道价，A 列分类向下沿用。
   let viewSonicCategory = '';
-  for (let rowIndex = 81; rowIndex <= 142; rowIndex += 1) {
-    const row = displaySheet.values[rowIndex] || [];
+  for (const { row, rowIndex } of sectionRows('优派')) {
     const category = text(row[0]);
     if (category) viewSonicCategory = category;
     const name = text(row[2]);
@@ -393,10 +413,9 @@ if (displaySheet) {
   }
 
   // 海兰：A 型号、B 含税价。
-  for (let rowIndex = 146; rowIndex <= 157; rowIndex += 1) {
-    const row = displaySheet.values[rowIndex] || [];
+  for (const { row, rowIndex } of sectionRows('海兰')) {
     const name = text(row[0]);
-    if (!name || name === '型号' || !/^[A-Z]/i.test(name)) continue;
+    if (!name || name === '型号' || !/^[A-Z]/i.test(name) || !/\d/.test(name)) continue;
     const price = priceInfo(row[1]);
     pushDisplay(rowIndex, {
       name,
@@ -411,8 +430,7 @@ if (displaySheet) {
 
   // 明基：B 型号、C 提货价，A 列系列向下沿用。
   let benQCategory = '';
-  for (let rowIndex = 162; rowIndex <= 179; rowIndex += 1) {
-    const row = displaySheet.values[rowIndex] || [];
+  for (const { row, rowIndex } of sectionRows('明基')) {
     const category = text(row[0]);
     if (category) benQCategory = category;
     const name = text(row[1]);
