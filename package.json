@@ -13,7 +13,8 @@
     "deploy:pages": "zsh scripts/deploy-pages.sh",
     "deploy:edgeone": "zsh scripts/deploy-edgeone.sh",
     "reauth:wps": "node scripts/export-wps-session.mjs && zsh scripts/publish-wps-session.sh",
-    "sync:data": "node scripts/sync-kdocs-cli.mjs && node scripts/build-catalog.mjs"
+    "sync:data": "node scripts/sync-kdocs-cli.mjs && node scripts/build-catalog.mjs",
+    "sync:data:only": "node scripts/sync-kdocs-cli.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.66.0",

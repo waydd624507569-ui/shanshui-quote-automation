@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUp,
   Box,
@@ -93,6 +93,18 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat('zh-CN').format(value);
 }
 
+function getSyncStatus(value: string) {
+  const capturedAt = new Date(value).getTime();
+  const age = Date.now() - capturedAt;
+  if (!Number.isFinite(capturedAt) || age > 6 * 60 * 60 * 1000) {
+    return { tone: 'stale', label: '同步可能延迟' };
+  }
+  if (age > 2 * 60 * 60 * 1000) {
+    return { tone: 'aging', label: '数据待更新' };
+  }
+  return { tone: 'fresh', label: '快照' };
+}
+
 interface EncryptedCatalogEnvelope {
   schemaVersion: number;
   kdf: { name: 'PBKDF2'; hash: 'SHA-256'; iterations: number; salt: string };
@@ -105,9 +117,18 @@ function decodeBase64(value: string) {
   return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
 
-async function loadCatalog(passphrase: string): Promise<Catalog> {
-  const response = await fetch(`${import.meta.env.BASE_URL}data/catalog.enc.json`, { cache: 'no-store' });
+async function loadCatalog(
+  passphrase: string,
+  options: { etag?: string | null } = {},
+): Promise<{ catalog: Catalog; etag: string | null; notModified: boolean }> {
+  const headers = options.etag ? { 'If-None-Match': options.etag } : undefined;
+  const response = await fetch(`${import.meta.env.BASE_URL}data/catalog.enc.json`, {
+    cache: 'no-store',
+    headers,
+  });
+  if (response.status === 304) return { catalog: null as unknown as Catalog, etag: options.etag ?? null, notModified: true };
   if (!response.ok) throw new Error('报价数据加载失败');
+  const etag = response.headers.get('ETag');
   const envelope = await response.json() as EncryptedCatalogEnvelope;
   if (envelope.schemaVersion !== 1) throw new Error('报价数据版本不支持');
 
@@ -135,7 +156,8 @@ async function loadCatalog(passphrase: string): Promise<Catalog> {
     key,
     decodeBase64(envelope.payload),
   );
-  return JSON.parse(new TextDecoder().decode(plaintext)) as Catalog;
+  const catalog = JSON.parse(new TextDecoder().decode(plaintext)) as Catalog;
+  return { catalog, etag, notModified: false };
 }
 
 function dealComponentTotal(deal: Deal) {
@@ -172,18 +194,47 @@ function getCopyText(item: CatalogItem) {
 function DealCarousel({ catalog }: { catalog: Catalog }) {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(() => new Set());
+  const preloadedImages = useRef(new Set<string>());
   const total = catalog.deals.length;
   const deal = catalog.deals[current];
   const componentTotal = deal ? dealComponentTotal(deal) : 0;
-  const imageSrc = deal
-    ? `${import.meta.env.BASE_URL}${deal.image.replace(/^\/+/, '')}?v=${encodeURIComponent(catalog.meta.capturedAt)}`
-    : '';
+  const imageSources = useMemo(
+    () => catalog.deals.map((item) => (
+      `${import.meta.env.BASE_URL}${item.image.replace(/^\/+/, '')}?v=${encodeURIComponent(catalog.meta.capturedAt)}`
+    )),
+    [catalog.deals, catalog.meta.capturedAt],
+  );
+  const imageSrc = imageSources[current] ?? '';
+  const nextImageSrc = total > 1 ? imageSources[(current + 1) % total] ?? '' : '';
+  const imageReady = loadedImages.has(imageSrc);
+  const canAdvance = Boolean(nextImageSrc) && imageReady && loadedImages.has(nextImageSrc);
+
+  function markImageReady(src: string) {
+    setLoadedImages((previous) => {
+      if (previous.has(src)) return previous;
+      const next = new Set(previous);
+      next.add(src);
+      return next;
+    });
+  }
 
   useEffect(() => {
-    if (paused || total <= 1) return;
+    for (const src of [imageSrc, nextImageSrc]) {
+      if (!src || preloadedImages.current.has(src)) continue;
+      preloadedImages.current.add(src);
+      const preload = new Image();
+      preload.onload = () => markImageReady(src);
+      preload.onerror = () => preloadedImages.current.delete(src);
+      preload.src = src;
+    }
+  }, [imageSrc, nextImageSrc]);
+
+  useEffect(() => {
+    if (paused || total <= 1 || !canAdvance) return;
     const timer = window.setInterval(() => setCurrent((index) => (index + 1) % total), 5600);
     return () => window.clearInterval(timer);
-  }, [paused, total]);
+  }, [canAdvance, paused, total]);
 
   if (!deal) return null;
 
@@ -222,7 +273,14 @@ function DealCarousel({ catalog }: { catalog: Catalog }) {
       >
         <div className="deal-visual">
           <div className="deal-visual-glow" />
-          <img key={deal.id} src={imageSrc} alt={`${deal.name} 套餐商品图`} />
+          <img
+            className={imageReady ? 'is-ready' : ''}
+            src={imageSrc}
+            alt={`${deal.name} 套餐商品图`}
+            fetchPriority="high"
+            onLoad={() => markImageReady(imageSrc)}
+          />
+          {!imageReady ? <span className="deal-image-status">图片加载中…</span> : null}
           <span className="deal-label">套包 {current + 1}</span>
         </div>
         <div className="deal-content">
@@ -422,6 +480,7 @@ function QuoteApp({ catalog }: { catalog: Catalog }) {
 
   const allIcon = Layers;
   const AllIcon = allIcon;
+  const syncStatus = getSyncStatus(catalog.meta.capturedAt);
 
   return (
     <div className="app-shell">
@@ -434,10 +493,13 @@ function QuoteApp({ catalog }: { catalog: Catalog }) {
           </span>
         </a>
         <div className="header-actions">
-          <span className="sync-state" title={`数据抓取自 ${catalog.meta.capturedAt}`}>
+          <span
+            className={`sync-state sync-${syncStatus.tone}`}
+            title={`数据抓取自 ${catalog.meta.capturedAt}`}
+          >
             <span className="sync-dot" />
             <Database size={14} />
-            快照 · {formatDate(catalog.meta.capturedAt)}
+            {syncStatus.label} · {formatDate(catalog.meta.capturedAt)}
           </span>
           <a className="source-link" href={catalog.meta.sourceUrl} target="_blank" rel="noreferrer">
             打开原表
@@ -495,6 +557,10 @@ function QuoteApp({ catalog }: { catalog: Catalog }) {
             <span>{catalog.meta.sheetCount} 个原始工作表</span>
             <span>{catalog.meta.itemCount} 条可搜索报价</span>
             <span>原表只读，不修改</span>
+            <span className={`hero-sync sync-${syncStatus.tone}`} title={`数据抓取自 ${catalog.meta.capturedAt}`}>
+              <span className="sync-dot" />
+              {syncStatus.label} · {formatDate(catalog.meta.capturedAt)}
+            </span>
           </div>
         </section>
 
@@ -504,7 +570,7 @@ function QuoteApp({ catalog }: { catalog: Catalog }) {
           <div className="results-heading">
             <div>
               <h2 id="results-title">{query || activeCategory !== ALL ? '搜索结果' : '全部商品'}</h2>
-              <p>
+              <p aria-live="polite">
                 找到 <strong>{filteredItems.length}</strong> 条
                 {activeCategory !== ALL ? ` · ${activeCategory}` : ''}
               </p>
@@ -573,6 +639,24 @@ function QuoteApp({ catalog }: { catalog: Catalog }) {
 export default function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [error, setError] = useState('');
+  const etagRef = useRef<string | null>(null);
+
+  const fetchCatalog = useCallback(async () => {
+    const passphrase = import.meta.env.VITE_CATALOG_PASSPHRASE as string | undefined;
+    if (!passphrase) {
+      setError('报价数据配置错误');
+      return;
+    }
+    try {
+      const result = await loadCatalog(passphrase, { etag: etagRef.current });
+      if (result.notModified) return;
+      etagRef.current = result.etag;
+      setCatalog(result.catalog);
+      setError('');
+    } catch {
+      // 轮询失败保持当前数据,不打断用户浏览
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -583,13 +667,30 @@ export default function App() {
     }
     loadCatalog(passphrase)
       .then((nextCatalog) => {
-        if (active) setCatalog(nextCatalog);
+        if (!active) return;
+        etagRef.current = nextCatalog.etag;
+        setCatalog(nextCatalog.catalog);
       })
       .catch(() => {
         if (active) setError('报价数据加载失败');
       });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!catalog) return;
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void fetchCatalog();
+    }, 60_000);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void fetchCatalog();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [catalog, fetchCatalog]);
 
   if (!catalog) {
     return (
