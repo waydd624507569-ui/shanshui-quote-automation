@@ -1,11 +1,7 @@
 name: Sync quote data
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
-  repository_dispatch:
-    types: [airsync]
 
 concurrency:
   group: shanshui-quote-sync
